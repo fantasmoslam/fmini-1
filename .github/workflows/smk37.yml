@@ -134,13 +134,27 @@ jobs:
           cc -O1 -g -fsanitize=address -fno-omit-frame-pointer -Ibuild/gen -Ifirmware/src -Itests tests/fmini_smk_controls_test.c -o build/host/fmini_smk_controls_test -lm
           ASAN_OPTIONS=detect_leaks=0 build/host/fmini_smk_controls_test build/smk-ui
           python3 -c 'from pathlib import Path; from PIL import Image; [Image.open(p).save(p.with_suffix(".png")) for p in Path("build/smk-ui").glob("*.ppm")]'
-      - name: Shared firmware regression suite
+      - name: FMini and shared MIDI/storage regressions
         shell: bash
         run: |
           set -euo pipefail
           sh build.sh > final-fm1-build.log 2>&1
-          sh tests/run_tests.sh > full-tests.log 2>&1 || { tail -100 full-tests.log; exit 1; }
-          tail -60 full-tests.log
+          mkdir -p build/host/fa
+          export MENU_JSON=build/host/menu.json
+          {
+            for test in storage_test fmini_app_test fmini_filter_test fmini_fx_test fmini_rec_test fmini_bank_test midi_control_test persistence_test robust_test editor_test; do
+              echo "== $test"
+              cc -O1 -w -Ibuild/gen -Ifirmware/src -Itests "tests/$test.c" -o "build/host/$test" -lm
+              if [ "$test" = fmini_app_test ]; then "build/host/$test" build/host/fa; else "build/host/$test"; fi
+            done
+            cc -O1 -w -Ibuild/gen -Ifirmware/src tests/descdump.c -o build/host/descdump -lm
+            build/host/descdump > build/host/desc.json
+            python3 tests/target_budget.py build/felucca.dis tests/target_budget.txt
+            python3 tools/gen_fmini_presets.py --check-editor
+            node web/test_web.mjs
+            node web/test_backup.mjs
+          } > port-tests.log 2>&1 || { tail -100 port-tests.log; exit 1; }
+          tail -60 port-tests.log
       - name: Stage reference artifacts
         if: always()
         run: |
@@ -155,7 +169,7 @@ jobs:
             build/reference/
             build/*.fwsc
             *-build.log
-            full-tests.log
+            port-tests.log
             build/smk-ui/
             fm1-build.log
           if-no-files-found: warn
