@@ -42,6 +42,10 @@ int main(int argc,char **argv) {
     fa_gl=1; fm1_in.fader[0]=127; smk_frame(); assert(TSEL->p[P_ATK]==100);
     fa_gl=0; smk_frame(); fm1_in.fader[0]=110; smk_frame(); assert(TSEL->p[P_ATK]==100);
     fm1_in.fader[0]=95; smk_frame(); assert(TSEL->p[P_ATK]==95);
+    { uint32_t epoch=fmini_smk_epoch;
+      apply_preset_to(TSEL,0); assert(fmini_smk_epoch!=epoch); smk_frame();
+      for(i=0;i<4;i++) assert(!fa_smk_pickup[i].armed);
+    }
     cutoff=TSEL->p[P_E0]=64; resonance=TSEL->p[P_E1]=64;
     smk_turn(EN_SELECT,3); smk_turn(EN_ALGO,2);
     assert(TSEL->p[P_E0]==cutoff+3 && TSEL->p[P_E1]==resonance+2);
@@ -53,7 +57,9 @@ int main(int argc,char **argv) {
     render(dir,"adsr-shift"); fm1_in.buttons=0; smk_frame();
     fm1_in.fader[3]=127; smk_frame(); render(dir,"adsr-pickup");
     fa_smk_hot=0; fa_smk_until=0; render(dir,"adsr");
-    fa_gl=1; render(dir,"global"); fa_gl=0;
+    fa_gl=1; fa_gl_row=7; smk_turn(EN_ALGO,1);
+    assert(ui_prefs2 & (PREF_CPU2_ON>>16)); render(dir,"global");
+    smk_turn(EN_ALGO,-1); assert(!(ui_prefs2 & (PREF_CPU2_ON>>16))); fa_gl=0;
     for(i=0;i<100;i++) fa_leds();
     /* The ten keys outside the original 27-note window reach the same engine. */
     song.octave=0; TSEL->p[P_QUANT]=QN_OFF; TSEL->p[P_TRANS]=0;
@@ -62,6 +68,10 @@ int main(int argc,char **argv) {
         assert(ext_note[i]==49u+i);
         host_ext_event=(int32_t)(i<<8); ext_keys_block(); assert(!ext_note[i]);
     }
+    fm_bend_mode=3; smk_bend14=8191; smk_wheels_block();
+    assert(midi_bend_target[0]==2*256);
+    smk_bend14=-8192; smk_wheels_block(); assert(midi_bend_target[0]==-24*256);
+    smk_bend14=0; smk_wheels_block(); assert(!midi_bend_target[0]);
     puts("SMK real UI: ADSR ownership, filter controls, modifier, render, LEDs and outer keys passed");
     return 0;
 }

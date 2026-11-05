@@ -1723,7 +1723,7 @@ async function updater() {
     ok(gn === "FM-1_900" && dn.bad === 0, `fm1ota.js: install through the ports "${run}" -> "${ota}" -> "${run}" (${gn})`);
     const dr = new FakeFM1(image, { run, ota });
     dr.boot("ota-FM-1_900", ota);
-    ok(await new Updater(dr.access).resume(image) === true, `fm1ota.js: resume finds the loader named "${ota}"`);
+    ok(await new Updater(dr.access).resume(image, undefined, "FM-1_900") === true, `fm1ota.js: resume finds the loader named "${ota}"`);
   }
 
   /* another custom firmware's USB name: not found by name, found when the player picks the port */
@@ -1740,7 +1740,7 @@ async function updater() {
   const dev2 = new FakeFM1(image, { unplugAfter: 3 });
   dev2.boot("ota-FM-1_900", "Felucca Update");
   const t0 = Date.now();
-  const done = await new Updater(dev2.access).resume(image);
+  const done = await new Updater(dev2.access).resume(image, undefined, "FM-1_900");
   ok(done === false && Date.now() - t0 < 6000, "fm1ota.js: unplugged during the write -> stops at once");
 
   const dev3 = new FakeFM1(image, { unplugAfter: 2 });
