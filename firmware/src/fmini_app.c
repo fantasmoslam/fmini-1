@@ -1681,7 +1681,11 @@ static void fa_draw(void)
     }
 }
 
+#if BOARD_SMK37
+#include "fmini_splash_smk37.h"                         /* the SMK-37 build's picture (assets/fmini-splash-smk37.png) */
+#else
 #include "fmini_splash.h"
+#endif
 static void fa_splash(void)                              /* the picture (assets/fmini-splash.png), the version bottom right: power-on (3 s, main.c) and ABOUT */
 {
     uint32_t band, x, y;
