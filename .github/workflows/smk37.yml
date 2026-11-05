@@ -85,7 +85,7 @@ jobs:
           cmp build/fmini-1-fm1-2.2.0.bin ../fm1-reference/build/fmini-1-fm1-2.2.0.bin
           cmp build/fmini-1-fm1-2.2.0.fwsc ../fm1-reference/build/fmini-1-fm1-2.2.0.fwsc
           cmp build/loader/ota.bin ../fm1-reference/build/loader/ota.bin
-      - name: SMK-37 Elite firmware
+      - name: SMK-37 model firmware
         shell: bash
         run: |
           set -euo pipefail
@@ -126,6 +126,14 @@ jobs:
             "build/host/ldr-$model" "build/$stem.fwsc" "build/$stem.fwsc"
             index=$((index+1))
           done
+      - name: SMK real UI controls and render
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/smk-ui
+          cc -O1 -g -fsanitize=address -fno-omit-frame-pointer -Ibuild/gen -Ifirmware/src -Itests tests/fmini_smk_controls_test.c -o build/host/fmini_smk_controls_test -lm
+          ASAN_OPTIONS=detect_leaks=0 build/host/fmini_smk_controls_test build/smk-ui
+          python3 -c 'from pathlib import Path; from PIL import Image; [Image.open(p).save(p.with_suffix(".png")) for p in Path("build/smk-ui").glob("*.ppm")]'
       - name: Shared firmware regression suite
         shell: bash
         run: |
@@ -148,6 +156,7 @@ jobs:
             build/*.fwsc
             *-build.log
             full-tests.log
+            build/smk-ui/
             fm1-build.log
           if-no-files-found: warn
 

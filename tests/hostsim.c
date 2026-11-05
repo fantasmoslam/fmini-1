@@ -27,7 +27,11 @@
 #undef memset
 #undef memcpy
 #undef memcmp
+#if BOARD_SMK37
+#include "smk_host.h"
+#else
 static struct { volatile uint32_t notes, buttons; } fm1_in;
+#endif
 #include "../firmware/src/core.h"
 #include "../firmware/src/engines.c"
 #include "../firmware/src/fmini_rec.c"

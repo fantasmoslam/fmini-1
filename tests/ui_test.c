@@ -47,9 +47,20 @@ static uint32_t host_slots[3u * 0x14000u / 4u];          /* USR1..3 (zero: empty
 #undef main
 
 /* ------------------------------------------------------------ HAL stubs --- */
+#if !BOARD_SMK37
 #define FM1_NCOL 11u
+#endif
+#ifndef FM1_NENC
+#define FM1_NENC 7u
+#endif
 static const int8_t FM1_KEYMAP[6][FM1_NCOL];
-static uint8_t fm1_led[FM1_NCOL], fm1_led_dim[FM1_NCOL], fm1_led_breath[FM1_NCOL], fm1_led_mid[FM1_NCOL];
+static uint8_t fm1_led[
+#if BOARD_SMK37
+SMK_NLED
+#else
+FM1_NCOL
+#endif
+], fm1_led_dim[FM1_NCOL], fm1_led_breath[FM1_NCOL], fm1_led_mid[FM1_NCOL];
 static uint32_t host_dim_lo;                      /* hal/fm1_input.h: the glow MENU > LEDS asked for (1: DIM LO) */
 static void fm1_led_dim_level(uint32_t lo) { host_dim_lo = lo; }
 static int host_anim;                             /* hal/fm1_input.h: the power-on sweep running (it has the LEDs) */
@@ -60,17 +71,17 @@ static int fm1_led_idle_on(void) { return host_idle; }
 static void fm1_led_anim_stop(void) { host_anim = host_idle = 0; }
 #define FM1_TICKS_PER_US 1u
 static uint32_t host_ticks, host_pressed, host_notes;
-static int32_t host_enc[7];
+static int32_t host_enc[FM1_NENC];
 static uint32_t fm1_ticks(void) { return host_ticks; }
 static uint32_t fm1_input_edges(int x) { uint32_t p = host_pressed; (void)x; host_pressed = 0; return p; }
 static uint32_t fm1_input_note_edges(void) { uint32_t n = host_notes; host_notes = 0; return n; }
 /* host_enc_late: detents the TIMER5 scan counts just after a read (#102: while ui_input runs); the next read has them */
-static int32_t host_enc_late[7];
+static int32_t host_enc_late[FM1_NENC];
 static int32_t fm1_enc_take(uint32_t e)
 {
-    int32_t s = host_enc[e % 7u];
-    host_enc[e % 7u] = host_enc_late[e % 7u];
-    host_enc_late[e % 7u] = 0;
+    int32_t s = host_enc[e % FM1_NENC];
+    host_enc[e % FM1_NENC] = host_enc_late[e % FM1_NENC];
+    host_enc_late[e % FM1_NENC] = 0;
     return s;
 }
 static void (*host_wdt_hook)(void);                /* (a test's: time passing in a blocking loop, as panel_setup's) */
