@@ -77,17 +77,15 @@ jobs:
           build/host/fmini_filter_test 2>&1 | tee build/qualification/filter.log
           cc -O2 -Ibuild/gen -Ifirmware/src -Itests -o build/host/fmini_fx_test tests/fmini_fx_test.c -lm 2>build/qualification/fx-compile.log
           build/host/fmini_fx_test 2>&1 | tee build/qualification/fx.log
+      - name: Stage reference artifacts
+        if: always()
+        run: |
+          mkdir -p build/reference
+          if [ -d ../fm1-reference/build ]; then cp -a ../fm1-reference/build/. build/reference/; fi
       - name: Retain reference and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: fm1-v2.2.0-reference-${{ github.run_id }}
-          path: |
-            ../fm1-reference/build/qualification/
-            ../fm1-reference/build/*.bin
-            ../fm1-reference/build/*.fwsc
-            ../fm1-reference/build/felucca.dis
-            ../fm1-reference/build/gen/
-            ../fm1-reference/build/loader/ota.bin
-            ../fm1-reference/build/host/fa/
+          path: build/reference/
           if-no-files-found: warn
