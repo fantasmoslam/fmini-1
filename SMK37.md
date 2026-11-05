@@ -69,4 +69,6 @@ One SMK-37 Elite, November 5, 2026. Tested by the owner, not by an automated rig
 | Save | Patch saved with BT, reloaded after restart |
 | Second core | No audible difference with the worker on or off in normal playing; no counters were measured |
 
+Update the same day: the build from commit `748a7b3` (SMK-only boot picture, `fmini-1-smk37-elite.fwsc` SHA-256 `9ebded1706095255343427f4007b9b4bea41d1e856ab027947dcfe125dbcd098`, CI run 41969512610) installed over it with `--port "FM-1 Midi"` (the running FMini build's USB port name).
+
 Not done on hardware: the measured core-off/on stress comparison (step 4), saves in the first and last bank objects with a protected-byte readback (step 5), and a demonstrated restore from the backup.
