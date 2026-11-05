@@ -2286,6 +2286,22 @@ static void fa_input(void)
 
 static void fa_leds(void)
 {
+#if BOARD_SMK37
+    uint32_t k, held = fm1_in.notes | fa_sound_keys();
+    for (k = 0; k < SMK_NLED; k++) fm1_led[k] = 0;
+    fm1_led[panel.btn[B_PLAY]] = song.playing != 0u;
+    fm1_led[panel.btn[B_REC]] = fa_sq_rec != 0u;
+    fm1_led[panel.btn[B_ARP]] = TSEL->p[P_AMODE] != 0;
+    fm1_led[panel.btn[B_SEQ]] = fa_sq != 0u || fa_sc != 0u;
+    fm1_led[panel.btn[B_SAVE]] = fa_sv != 0u;
+    fm1_led[panel.btn[B_GLO]] = fa_gl != 0u;
+    fm1_led[panel.btn[B_OCTDN]] = song.octave < 0;
+    fm1_led[panel.btn[B_OCTUP]] = song.octave > 0;
+    for (k = 0; k < SMK_NPAD; k++) {
+        uint32_t on = (held >> SMK_WHITE_NOTE[k]) & 1u;
+        padled_set(k, on ? 32u : 0u, on ? 16u : 0u, 0);
+    }
+#else
     uint8_t nl[FM1_NCOL] = {0}, nd[FM1_NCOL] = {0}, nb[FM1_NCOL] = {0}, nm[FM1_NCOL] = {0};
     uint32_t k, c;
     static uint8_t ready;
@@ -2323,6 +2339,7 @@ static void fa_leds(void)
         fm1_led_mid[k] = nm[k];
         fm1_led[k] = nl[k];
     }
+#endif
 }
 
 /* power-on: track 1 is the instrument (the first factory patch), the others are muted FMINI parts */

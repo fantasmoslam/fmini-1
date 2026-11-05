@@ -77,6 +77,28 @@ jobs:
           build/host/fmini_filter_test 2>&1 | tee build/qualification/filter.log
           cc -O2 -Ibuild/gen -Ifirmware/src -Itests -o build/host/fmini_fx_test tests/fmini_fx_test.c -lm 2>build/qualification/fx-compile.log
           build/host/fmini_fx_test 2>&1 | tee build/qualification/fx.log
+      - name: FM-1 binary compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh build.sh 2>&1 | tee fm1-build.log
+          cmp build/fmini-1-fm1-2.2.0.bin ../fm1-reference/build/fmini-1-fm1-2.2.0.bin
+          cmp build/fmini-1-fm1-2.2.0.fwsc ../fm1-reference/build/fmini-1-fm1-2.2.0.fwsc
+          cmp build/loader/ota.bin ../fm1-reference/build/loader/ota.bin
+      - name: SMK-37 Elite firmware
+        shell: bash
+        run: |
+          set -euo pipefail
+          BOARD=smk37 MODEL=elite sh build.sh 2>&1 | tee elite-build.log
+      - name: SMK protected storage checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/host
+          cc -DBOARD_SMK37=1 -Ifirmware/hal tests/smk_flash_test.c -o build/host/smk_flash_test
+          build/host/smk_flash_test
+          cc -DBOARD_SMK37=1 -Ifirmware/hal tests/smk_owner_test.c -o build/host/smk_owner_test
+          build/host/smk_owner_test
       - name: Stage reference artifacts
         if: always()
         run: |
@@ -87,5 +109,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fm1-v2.2.0-reference-${{ github.run_id }}
-          path: build/reference/
+          path: |
+            build/reference/
+            build/*.fwsc
+            elite-build.log
+            fm1-build.log
           if-no-files-found: warn
+

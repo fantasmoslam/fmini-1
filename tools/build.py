@@ -49,6 +49,9 @@ SDK_SHA256 = {
     "cfg/eq_cfg_hw.bin": "41167491bffed4651750719c973d2758adeb9021a5670d02d6a53c85ed80ea7d",
 }
 
+BOARD = "fm1"
+BOARD_DEFS = []
+MODELS = {"pro": "SMK-37 Pro", "elite": "SMK-37 Elite", "mke": "MKE-P37"}
 PRODUCT = "FM-1_900"                # package identity; release builds are FM-1_9XY
 VERSION = None                      # FELUCCA_VERSION for release builds (default: firmware/src/felucca.c)
 STEM = "fmini-1-fm1"                # output stem: fmini-1-fm1-<version> (set by main)
@@ -152,7 +155,7 @@ def ldr_wrap(image):
 def build_loader():
     LDR.mkdir(parents=True, exist_ok=True)
     src = FW / "loader"
-    flags = [*CFLAGS, "-Ifirmware/hal", "-Ifirmware/src"]
+    flags = [*CFLAGS, *BOARD_DEFS, "-Ifirmware/hal", "-Ifirmware/src"]
     tc_all(("cc", "-c", src / "crt0_ldr.S", "-o", LDR / "crt0_ldr.o"),
            ("cc", *flags, "-c", src / "loader.c", "-o", LDR / "loader.o"))
     elf = LDR / "loader.elf"
@@ -191,7 +194,7 @@ def ld_regions():
 
 
 def build_app():
-    flags = [*CFLAGS, "-Ifirmware/hal", "-Ifirmware/src", "-Ibuild/gen"]
+    flags = [*CFLAGS, *BOARD_DEFS, "-Ifirmware/hal", "-Ifirmware/src", "-Ibuild/gen"]
     for flag in ("FELUCCA_FLASH", "FELUCCA_OTA", "FELUCCA_OTA_DRYRUN", "FELUCCA_OTA_RAMONLY", "FELUCCA_CDC",
                  "FELUCCA_UART", "FELUCCA_UAC", "FELUCCA_UAC_TONE", "FELUCCA_UAC_48K", "FELUCCA_ICONS", "FELUCCA_FM4",
                  "FELUCCA_CDC_DEFAULT", "FELUCCA_UAC_AS_FIRST", "FELUCCA_CPU2", "FELUCCA_FMINI_ONLY"):
@@ -222,7 +225,13 @@ def build_app():
         tc("cc", *[f for f in flags if not f.startswith(("-I", "-D", "-W"))], "-c",
            OUT / "felucca_size.ll", "-o", OUT / "felucca.o")
     elf = OUT / "felucca.elf"
-    tc("pi32v2/bin/ld", "-T", FW / "app.ld", OUT / "crt0.o", OUT / "fm1_vec.o", OUT / "fm1_isr.o",
+    ld = FW / "app.ld"
+    if BOARD == "smk37":
+        text = ld.read_text()
+        if text.count("LENGTH = 0x8DFBC") != 1: raise SystemExit("app.ld XIP length not found")
+        ld = OUT / "app-smk37.ld"
+        ld.write_text(text.replace("LENGTH = 0x8DFBC", "LENGTH = 0x97400"))
+    tc("pi32v2/bin/ld", "-T", ld, OUT / "crt0.o", OUT / "fm1_vec.o", OUT / "fm1_isr.o",
        *([OUT / "fm1_cpu1.o"] if CPU2 else []), OUT / "felucca.o", "-o", elf)
     for sect in ("text.bin", "data.bin", "ramtext.bin", "c1text.bin"):
         (OUT / sect).unlink(missing_ok=True)
@@ -372,9 +381,11 @@ def mmio_check():
 
 
 def main():
-    global PRODUCT, VERSION
+    global PRODUCT, VERSION, BOARD, BOARD_DEFS, APP_SLOT
     ap = argparse.ArgumentParser()
     ap.add_argument("--release", metavar="X.Y", help="release build: identity FM-1_9XY, version string vX.Y")
+    ap.add_argument("--board", choices=["fm1", "smk37"], default=os.environ.get("BOARD", "fm1"))
+    ap.add_argument("--model", choices=sorted(MODELS), default=os.environ.get("MODEL", "pro"))
     ap.add_argument("--sdk", type=Path, help="JieLi AC79 SDK checkout (default: $AC79_SDK)")
     a = ap.parse_args()
     global STEM
@@ -387,6 +398,16 @@ def main():
         PRODUCT = "FM-1_9" + m[1] + m[2]
         VERSION = "v" + a.release.lower()      # e.g. v1.0, v1.1-rc1
         STEM = f"fmini-1-fm1-{a.release}"
+    BOARD = a.board
+    if BOARD == "smk37":
+        fm1pkg_make.set_board(BOARD)
+        APP_SLOT = fm1pkg_make.APP_SLOT
+        PRODUCT = MODELS[a.model] + "_900"
+        BOARD_DEFS = ["-DBOARD_SMK37=1", '-DSMK_MODEL="' + MODELS[a.model] + '"']
+        STEM = "fmini-1-smk37" + ("-" + a.model if a.model != "pro" else "")
+        if a.release:
+            PRODUCT = MODELS[a.model] + "_9" + m[1] + m[2]
+            STEM += "-" + a.release
     name = STEM + ".fwsc"
     if not (FW / "engines" / "src" / "felucca_engine.h").exists():
         raise SystemExit("firmware/engines is empty: the Felucca-Engines submodule "

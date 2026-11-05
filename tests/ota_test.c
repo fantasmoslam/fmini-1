@@ -11,7 +11,29 @@
 #include <string.h>
 #define __attribute__(x)   /* (the sources' .pool sections: no Mach-O section names) */
 
+#if BOARD_SMK37                          /* -DBOARD_SMK37=1: the SMK-37 Pro build of ota.c */
+#if T_MODEL == 1                         /* -DT_MODEL=1 / 2: the MODEL=elite / mke build */
+#define SMK_MODEL "SMK-37 Elite"
+#elif T_MODEL == 2
+#define SMK_MODEL "MKE-P37"
+#else
+#define SMK_MODEL "SMK-37 Pro"
+#endif
+#define FELUCCA_ID SMK_MODEL "_900"
+#define T_AREA 0xBB000u
+#define T_FL_LEN "0x9D000"               /* flash.bin: this board's [0, app area end) */
+#define T_FL_OTHER 0x93000u              /* the other board's (the FM-1's) */
+#define T_FL_OTHER_NAME "0x93000"
+#define T_PARM_ID "ota-" SMK_MODEL "_016"
+#else
 #define FELUCCA_ID "FM-1_900"
+#define T_AREA 0xE0000u
+#define T_PARM_ID "ota-FM-1_015"
+#define T_FL_LEN "0x93000"
+#define T_FL_OTHER 0x9D000u              /* an SMK-37 Pro package's */
+#define T_FL_OTHER_NAME "0x9D000"
+#endif
+#define T_AREA_HI (T_AREA + 0x5000u)
 #define FELUCCA_OTA_DRYRUN 0
 
 static uint8_t nor[0x100000];
@@ -97,7 +119,7 @@ static uint32_t ota_now_ms(void) { return now_ms; }
 static void ota_idle(void) { now_ms += 1; }
 static int ota_erase(uint32_t off)
 {
-    if (off < 0xE0000u || off >= 0xE5000u || (off & 0xFFFu)) { bad_erase++; return -8; }
+    if (off < T_AREA || off >= T_AREA_HI || (off & 0xFFFu)) { bad_erase++; return -8; }
     erases++;
     memset(nor + off, 0xFF, 4096);
     return 0;
@@ -106,7 +128,7 @@ static int ota_prog(uint32_t off, const void *src, uint32_t n)
 {
     const uint8_t *s = src;
     uint32_t i;
-    if (off < 0xE0000u || off + n > 0xE5000u) { bad_erase++; return -8; }
+    if (off < T_AREA || off + n > T_AREA_HI) { bad_erase++; return -8; }
     for (i = 0; i < n; i++) nor[off + i] &= s[i];
     return 0;
 }
@@ -162,7 +184,7 @@ static int check(const char *what, int ok)
 static int area_erased(void)
 {
     uint32_t i;
-    for (i = 0xE0000; i < 0xE5000; i++) if (nor[i] != 0xFF) return 0;
+    for (i = T_AREA; i < T_AREA_HI; i++) if (nor[i] != 0xFF) return 0;
     return 1;
 }
 
@@ -230,9 +252,9 @@ int main(int argc, char **argv)
         uint8_t keep[0x40 + 11 * 0x50];
         memcpy(keep, logical, sizeof keep);
         reset_dev();
-        set_fl_size(logical, 0x9D000u);
+        set_fl_size(logical, T_FL_OTHER);
         rc = ota_session();
-        bad += check("another board's size (0x9D000): -15, no commit, no erase", rc == -15 && !committed && erases == 0 &&
+        bad += check("another board's size (" T_FL_OTHER_NAME "): -15, no commit, no erase", rc == -15 && !committed && erases == 0 &&
                      area_erased());
         memcpy(logical, keep, sizeof keep);
     }

@@ -31,3 +31,7 @@ thanks the work below; each keeps its own licence (see [LICENSE](LICENSE), [LICE
   [jasonpersinger](https://github.com/jasonpersinger) (the ROOM reverb click fix, #121),
   [renebohne](https://github.com/renebohne) (MIDI Program Change, #179),
   [gospodindilly-ops](https://github.com/gospodindilly-ops) (the second core, #247)
+# SMK-37 adaptation
+
+The SMK-37 board layer is derived from M. Geisler's (genkigenki/makkuro) Felucca port and the Paleotone project's SMK integration. FMini-1 adaptation by Fantasmoslam. Original source notices are retained.
+
