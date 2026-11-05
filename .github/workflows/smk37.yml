@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: GPL-3.0-only
+name: SMK37 validation
+on:
+  push:
+    branches: [smk37]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: smk37-validation-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  baseline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      AC79_SDK: ${{ github.workspace }}/../ac79-sdk
+      JIELI_TOOLCHAIN: ${{ github.workspace }}/../jieli/toolchain
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Python build dependencies
+        run: pip install Pillow fonttools
+      - name: Cache JieLi tools and pinned SDK
+        id: sdk-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/../jieli
+            ${{ github.workspace }}/../ac79-sdk
+          key: fmini-jieli-linux-ac79-v1.2.1-20231213-v1
+      - name: Toolchain
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
+        run: sh tools/get_toolchain.sh "$(dirname "$JIELI_TOOLCHAIN")"
+      - name: Pinned SDK
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            staging="${AC79_SDK}.attempt-${attempt}"
+            if git clone --depth 1 --branch AC79NN_SDK_V1.2.1_2023-12-13 https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git "$staging"; then
+              test -f "$staging/cpu/wl82/tools/uboot.boot"
+              mv "$staging" "$AC79_SDK"
+              exit 0
+            fi
+          done
+          exit 1
+      - name: Untouched v2.2.0 reference
+        shell: bash
+        run: |
+          set -euo pipefail
+          git worktree add ../fm1-reference 54818a171f20df9efbc5a21db1fa21a7ec39881c
+          git -C ../fm1-reference submodule update --init --recursive
+          cd ../fm1-reference
+          sh build.sh 2>&1 | tee baseline-build.log
+          mkdir -p build/qualification
+          git rev-parse HEAD > build/qualification/source-commit.txt
+          git submodule status > build/qualification/submodule.txt
+          sha256sum build/fmini-1-fm1-*.bin build/fmini-1-fm1-*.fwsc build/loader/ota.bin > build/qualification/SHA256SUMS
+          cp baseline-build.log build/qualification/
+          python3 tests/target_budget.py build/felucca.dis tests/target_budget.txt 2>&1 | tee build/qualification/target-budget.log
+      - name: Baseline FMini app, filter and effects
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd ../fm1-reference
+          mkdir -p build/host/fa
+          cc -O1 -Ibuild/gen -Ifirmware/src -Itests -o build/host/fmini_app_test tests/fmini_app_test.c -lm 2>build/qualification/app-compile.log
+          build/host/fmini_app_test build/host/fa 2>&1 | tee build/qualification/app.log
+          cc -O2 -Ibuild/gen -Ifirmware/src -o build/host/fmini_filter_test tests/fmini_filter_test.c -lm 2>build/qualification/filter-compile.log
+          build/host/fmini_filter_test 2>&1 | tee build/qualification/filter.log
+          cc -O2 -Ibuild/gen -Ifirmware/src -Itests -o build/host/fmini_fx_test tests/fmini_fx_test.c -lm 2>build/qualification/fx-compile.log
+          build/host/fmini_fx_test 2>&1 | tee build/qualification/fx.log
+      - name: Retain reference and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fm1-v2.2.0-reference-${{ github.run_id }}
+          path: |
+            ../fm1-reference/build/qualification/
+            ../fm1-reference/build/*.bin
+            ../fm1-reference/build/*.fwsc
+            ../fm1-reference/build/felucca.dis
+            ../fm1-reference/build/gen/
+            ../fm1-reference/build/loader/ota.bin
+            ../fm1-reference/build/host/fa/
+          if-no-files-found: warn
