@@ -28,7 +28,17 @@ The physical faders control amplifier Attack, Decay, Sustain and Release, left t
 | BT (printed Bluetooth button) | SAVE: press to open, press again for OVERWRITE?, K3 to YES, press to write |
 | GLO > 2ND CORE | Enable or disable the inherited worker after restart; hardware benefit unverified |
 
-The existing pads play notes using the reference SMK mapping. A dedicated performance-patch bank is deferred. Pedal support and Bluetooth are not implemented. Legato and selectable note priority remain future work. The worker still splits whole parts; one active part may get no acceleration. No measured speedup or increased voice budget is claimed.
+The pads play notes using the reference SMK mapping. In the SEQUENCER pop-up with REC off, they are a step grid instead: pad 1-8 (top row) and 9-16 (bottom row) are the steps of the page shown by the orange bar on screen, and `<` `>` move through the four pages of 16 (64 steps).
+
+| In SEQ (REC off) | Does |
+| --- | --- |
+| Tap an empty step | On, with the last note played; the length grows to the end of that page |
+| Tap a step with a note | Off (a rest); the length stays |
+| Hold a step + play a key | That step's note |
+| Hold a step + K5 / K6 / K7 | Accent / slide / tie: right on, left off |
+| Hold a step + K8 | Chance, 5 % steps |
+
+Pad colours: dim orange a note, bright orange accent, blue slide, white the playhead, cream held, a faint glow a rest inside the length. With REC on, the pads play notes and record as before. A dedicated performance-patch bank is deferred. Pedal support and Bluetooth are not implemented. Legato and selectable note priority remain future work. The worker still splits whole parts; one active part may get no acceleration. No measured speedup or increased voice budget is claimed.
 
 The common store stays in the SMK VM region. The thirteen A/B objects for the 200-slot FMini patch bank occupy 0xC2000..0xDBFFF, replacing stock user data. The stock mapping marker is invalidated before that area is used so stock firmware can rebuild its own mapping. The calibration/pairing area, bootloader, stock resource area and key area remain protected. Firmware changes do not preserve stock sounds/settings; export those before switching.
 

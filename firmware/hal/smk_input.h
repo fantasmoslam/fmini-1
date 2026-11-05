@@ -435,10 +435,29 @@ static void fm1__frame(void)
 #define SMK_PAD_OFF 12u           /* below base + this: released */
 #define SMK_PAD_PEAKN 3u          /* samples (2.4 ms apart) for the peak */
 
+/* SEQ step grid (FMini): while the UI sets smk_pad_steps, a pad hit is a step edge, not a note. Bit p = hardware
+ * pad p (steps 1-8 the top row, pads 0..7; 9-16 the bottom row, pads 8..15) */
+static volatile uint8_t smk_pad_steps;
+static volatile uint16_t smk_step_held, smk_step_down;
+static int smk__padstep(uint32_t pad, uint32_t vel)   /* 1: the hit or release was a step pad's */
+{
+    if (vel && smk_pad_steps) {
+        smk_step_held |= (uint16_t)(1u << pad);
+        smk_step_down |= (uint16_t)(1u << pad);
+        return 1;
+    }
+    if (!vel && ((smk_step_held >> pad) & 1u)) {
+        smk_step_held &= (uint16_t)~(1u << pad);
+        return 1;
+    }
+    return 0;
+}
 static void smk__padq(uint32_t pad, uint32_t vel)     /* a pad hit (vel) or release (0): its white key */
 {
     int32_t n0 = smk_pad_piano ? SMK_PIANO_NOTE[pad] : (int32_t)SMK_WHITE_NOTE[SMK_WHITE_OF_PAD(pad)];
     uint32_t n, bit;
+    if (smk__padstep(pad, vel))
+        return;
     if (vel) {
         if (n0 < 0)
             return;                                   /* (a gap of the piano layout) */
@@ -630,6 +649,16 @@ static uint32_t fm1_input_note_edges(void)
     fm1_in.notes_pressed = 0;
     fm1__unlock(k);
     return p;
+}
+
+/* the step pads pressed since the last call */
+static uint32_t smk_steps_take(void)
+{
+    uint32_t k = fm1__lock();
+    uint32_t d = smk_step_down;
+    smk_step_down = 0;
+    fm1__unlock(k);
+    return d;
 }
 
 /* the next outer-key event (keybed key << 8 | velocity, 0 = release), -1 if none */

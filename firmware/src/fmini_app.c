@@ -917,10 +917,18 @@ static void fa_sc_dialog(void)
     fa_ctext(120, 196, &AF_S, "SELECT  ALGO  K1-K3  SEQ=CLOSE", FA_MU);
 }
 
+#if BOARD_SMK37
+static void fa_sg_key(uint32_t note);                     /* fmini_smk.c: the pads as a step grid */
+static void fa_sg_line(void);
+#endif
 static void fa_seq_note(track_t *t, uint32_t note)
 {
     step_t *s;
     uint32_t i;
+#if BOARD_SMK37
+    if (t == &trk[0])
+        fa_sg_key(note);
+#endif
     if (!fa_sq_rec || t != &trk[0] || note > 127u)
         return;
     if (fa_sq_fresh) {                                    /* the first note of a take: the old one goes */
@@ -1011,6 +1019,9 @@ static void fa_seq_dialog(void)
     fa_rtext(220, 200, &AF_M, b, FA_CR);
     fa_ctext(120, 214, &AF_X, fa_sq_rec ? "SELECT: REST / BACK" : "HOLD REC TO CLEAR", FA_MU);
     fa_ctext(120, 225, &AF_X, "REC  PLAY  ALGO=TEMPO  SEQ=CLOSE", FA_MU);
+#if BOARD_SMK37
+    fa_sg_line();
+#endif
     if (fa_sq_title_on()) {                               /* SEQ just opened: the word, for 0.5 s */
         cv_rect(60, 96, 120, 26, FA_OR);
         cv_rect(62, 98, 116, 22, bg);
@@ -2367,10 +2378,13 @@ static void fa_leds(void)
     fm1_led[panel.btn[B_GLO]] = fa_gl != 0u;
     fm1_led[panel.btn[B_OCTDN]] = song.octave < 0;
     fm1_led[panel.btn[B_OCTUP]] = song.octave > 0;
-    for (k = 0; k < SMK_NPAD; k++) {
-        uint32_t on = (held >> SMK_WHITE_NOTE[SMK_WHITE_OF_PAD(k)]) & 1u;
-        padled_set(k, on ? 32u : 0u, on ? 16u : 0u, 0);
-    }
+    if (fa_sg_on())
+        fa_sg_leds();
+    else
+        for (k = 0; k < SMK_NPAD; k++) {
+            uint32_t on = (held >> SMK_WHITE_NOTE[SMK_WHITE_OF_PAD(k)]) & 1u;
+            padled_set(k, on ? 32u : 0u, on ? 16u : 0u, 0);
+        }
 #else
     uint8_t nl[FM1_NCOL] = {0}, nd[FM1_NCOL] = {0}, nb[FM1_NCOL] = {0}, nm[FM1_NCOL] = {0};
     uint32_t k, c;

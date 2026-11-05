@@ -16,6 +16,9 @@ static struct {
 } fm1_in;
 static uint8_t smk_pad_grid;
 static uint8_t smk_pad_piano;
+static uint8_t smk_pad_steps;
+static uint16_t smk_step_held, smk_step_down;
+static uint32_t smk_steps_take(void) { uint32_t d=smk_step_down; smk_step_down=0; return d; }
 static uint32_t padled_hold_until;
 /* Compatibility fixtures for unused FM-1-only assertions in ui_test.c. */
 static uint8_t led_pos[64];

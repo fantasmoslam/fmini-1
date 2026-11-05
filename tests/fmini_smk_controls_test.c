@@ -96,6 +96,32 @@ int main(int argc,char **argv) {
     assert(fa_save_slot(199,"ADSR TEST")==0);
     TSEL->p[P_DEC]=1; TSEL->p[P_REL]=1; apply_preset_to(TSEL,199);
     assert(TSEL->p[P_DEC]==23 && TSEL->p[P_REL]==91);
+    /* SEQ: the pads as a step grid (REC off) */
+    fa_page=0; fa_sq=1; fa_sq_rec=0; fa_sc=fa_tp=0; song.playing=0;
+    for(i=0;i<NSTEP;i++) memset(&trk[0].step[i],0,sizeof(step_t));
+    trk[0].p[P_SLEN]=1; last_note=48;
+    smk_frame(); assert(smk_pad_steps);
+    smk_step_held=smk_step_down=1u<<2; smk_frame(); smk_step_held=0; smk_frame();   /* tap step 3: on */
+    assert(trk[0].step[2].n==1 && trk[0].step[2].note[0]==48 && trk[0].step[2].time==ST_NOTE && trk[0].p[P_SLEN]==16);
+    smk_step_held=smk_step_down=1u<<2; smk_frame();                                    /* hold step 3 */
+    fa_seq_note(&trk[0],55);                                                           /* + a key: its note */
+    smk_turn(EN_K1,1); smk_turn(EN_K2,1); smk_turn(EN_K3,1); smk_turn(EN_K4,-2);       /* accent, slide, tie, chance */
+    fm1_ms+=10000; render(dir,"seq-grid");
+    smk_step_held=0; smk_frame();
+    assert(trk[0].step[2].n==1 && trk[0].step[2].note[0]==55);
+    assert((trk[0].step[2].flags&(SF_ACCENT|SF_SLIDE))==(SF_ACCENT|SF_SLIDE) && trk[0].step[2].time==ST_TIE);
+    assert(step_chance(&trk[0].step[2])==90);
+    smk_step_held=smk_step_down=1u<<2; smk_frame(); smk_step_held=0; smk_frame();   /* tap again: cleared */
+    assert(!trk[0].step[2].n && trk[0].p[P_SLEN]==16);
+    host_pressed=1u<<SMK_BTN_RIGHT; smk_frame(); assert(fa_sg_page==1);              /* > : steps 17-32 */
+    smk_step_down=1u; smk_frame();                                                     /* a tap inside one frame */
+    assert(trk[0].step[16].n==1 && trk[0].p[P_SLEN]==32);
+    fa_leds(); assert(host_pad_rgb[0][0]==24 && host_pad_rgb[1][0]==2);
+    smk_step_down=1u; smk_frame(); assert(!trk[0].step[16].n);                         /* and a tap clears it */
+    host_pressed=1u<<SMK_BTN_LEFT; smk_frame(); assert(fa_sg_page==0);
+    fa_sq_rec=1; smk_frame(); assert(!smk_pad_steps);                                  /* REC: the pads play notes */
+    fa_sq_rec=0; fa_sq=0; smk_frame(); assert(!smk_pad_steps);
+    puts("SMK step grid: tap on/off, hold + key note, accent/slide/tie/chance, pages, LEDs passed");
     puts("SMK real UI: ADSR ownership, filter controls, modifier, render, LEDs and outer keys passed");
     return 0;
 }
