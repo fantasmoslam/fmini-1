@@ -10,6 +10,8 @@ Build with the same Linux toolchain and SDK as upstream:
 BOARD=smk37 MODEL=elite sh build.sh
 ```
 
+The SMK amplifier envelope uses independent Attack, Decay, Sustain and Release. The original FM-1 build keeps its coupled Decay/Release behaviour. Factory patches on the SMK now use their stored Release values; the filter contour still shares its Decay time with release.
+
 The physical faders control amplifier Attack, Decay, Sustain and Release, left to right, with target-crossing pickup. A patch load or external edit re-arms pickup. The first physical reading never changes a loaded value. The display shows the value and pickup direction, and the amplifier page exposes independent Release.
 
 | Control | Function |

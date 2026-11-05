@@ -22,6 +22,20 @@ static void render(const char *dir,const char *name) {
     }
     fclose(f);
 }
+/* Measure the real envelope, in control ticks, at fixed sustain. */
+static uint32_t smk_env_ticks(uint32_t decay,uint32_t release,uint32_t stage) {
+    voice_t v; uint32_t n=0;
+    memset(&v,0,sizeof v);
+    TSEL->p[P_ESYNC]=0; TSEL->p[P_ATK]=40; TSEL->p[P_DEC]=(int16_t)decay;
+    TSEL->p[P_SUS]=64; TSEL->p[P_REL]=(int16_t)release; esync_coef(TSEL);
+    v.stage=(uint8_t)stage; v.active=1;
+    v.env=stage==2u?1<<24:64<<17;
+    while(n<200000u && (stage==2u?v.env>(64<<17)+(1<<18):v.active)) {
+        env_tick(TSEL,&v); n++;
+    }
+    assert(n>0 && n<200000u);
+    return n;
+}
 int main(int argc,char **argv) {
     uint32_t i; int32_t cutoff, resonance, release, level;
     const char *dir=argc>1?argv[1]:".";
@@ -72,6 +86,16 @@ int main(int argc,char **argv) {
     assert(midi_bend_target[0]==2*256);
     smk_bend14=-8192; smk_wheels_block(); assert(midi_bend_target[0]==-24*256);
     smk_bend14=0; smk_wheels_block(); assert(!midi_bend_target[0]);
+    { uint32_t d0=smk_env_ticks(50,20,2), d1=smk_env_ticks(50,110,2);
+      uint32_t r0=smk_env_ticks(50,20,3), r1=smk_env_ticks(50,110,3);
+      uint32_t r2=smk_env_ticks(100,110,3), d2=smk_env_ticks(100,110,2);
+      assert(d0==d1 && d2>d1*2u && r1>r0*2u && r2==r1);
+      printf("SMK ADSR timing: decay %u/%u, release %u/%u; independent\n",d0,d2,r0,r1);
+    }
+    TSEL->p[P_DEC]=23; TSEL->p[P_REL]=91;
+    assert(fa_save_slot(199,"ADSR TEST")==0);
+    TSEL->p[P_DEC]=1; TSEL->p[P_REL]=1; apply_preset_to(TSEL,199);
+    assert(TSEL->p[P_DEC]==23 && TSEL->p[P_REL]==91);
     puts("SMK real UI: ADSR ownership, filter controls, modifier, render, LEDs and outer keys passed");
     return 0;
 }
