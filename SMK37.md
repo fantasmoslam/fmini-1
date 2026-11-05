@@ -1,6 +1,6 @@
 # FMini-1 on the SMK-37
 
-Work in progress on the `smk37` branch. No SMK build has been tested on hardware or approved for installation.
+Work in progress on the `smk37` branch. The Elite build from commit 2939b49 has been installed and played on one SMK-37 Elite (see "Hardware results" below). The Pro and MKE-P37 builds have not been tested on hardware.
 
 The baseline is FMini-1 v2.2.0, commit 54818a171f20df9efbc5a21db1fa21a7ec39881c. The port retains FMini-1's name, sound and authorship. The SMK hardware layer is adapted from M. Geisler's Felucca port and the owner's Paleotone SMK integration.
 
@@ -25,6 +25,7 @@ The physical faders control amplifier Attack, Decay, Sustain and Release, left t
 | Left / right | Previous / next sound page |
 | FADER BANK | Open amplifier envelope; faders keep their ADSR assignments |
 | Pitch / mod wheels | Engine pitch-bend / modulation path |
+| BT (printed Bluetooth button) | SAVE: press to open, press again for OVERWRITE?, K3 to YES, press to write |
 | GLO > 2ND CORE | Enable or disable the inherited worker after restart; hardware benefit unverified |
 
 The existing pads play notes using the reference SMK mapping. A dedicated performance-patch bank is deferred. Pedal support and Bluetooth are not implemented. Legato and selectable note priority remain future work. The worker still splits whole parts; one active part may get no acceleration. No measured speedup or increased voice budget is claimed.
@@ -52,3 +53,20 @@ Keep the existing 128-frame audio buffer. A buffer-size experiment would change 
 5. Save, reload and restart with edits in the first and last preset-bank objects. Verify protected calibration/pairing bytes against the backup. Interrupted writes are exercised in the NOR simulator; deliberate power interruption on the device is not part of the initial playing test.
 
 The host checks use the actual FMini UI and sequencer with a register-free SMK HAL. They cannot prove the matrix wiring, ADC behaviour, codec output, flash-chip timing or real-time audio margin. Those remain hardware gates.
+
+## Hardware results
+
+One SMK-37 Elite, November 5, 2026. Tested by the owner, not by an automated rig.
+
+| Item | Result |
+| --- | --- |
+| Package | `fmini-1-smk37-elite.fwsc`, 651,198 bytes, SHA-256 `8919bf76b04291b7b54b4d6f18ff6cc84c15cf324759ac2ef2cd7db15f40835d`, from CI run 41959745683 at commit `2939b4947452fce4f5983edec69ee65a892c4033` |
+| Identity before install | `SMK-37 Elite_900` (running), a Felucca-family firmware with Paleotone data tag `SMK37DATAPALEOTN` at 0xAF000 |
+| Backup | Full 1 MB read twice over the mask-ROM bootloader with jl-uboot-tool; the two reads are identical; `trimdat` at 0xC1224; 0xFF000..0xFFFFF blank on this unit |
+| Flash | WL82 (AC791N), chip key 0x980F, flash ID `0x856014` (the kit's reference unit reports `0xeb6014`) |
+| Install | `tools/fm1_install.py --port Felucca` over USB MIDI; installed and booted |
+| Controls | Faders 1..4 ADSR with pickup, short Decay / long Release and the reverse, K2..K8, all 37 keys and pads, both wheels, screen pages: working |
+| Save | Patch saved with BT, reloaded after restart |
+| Second core | No audible difference with the worker on or off in normal playing; no counters were measured |
+
+Not done on hardware: the measured core-off/on stress comparison (step 4), saves in the first and last bank objects with a protected-byte readback (step 5), and a demonstrated restore from the backup.
