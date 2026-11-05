@@ -141,7 +141,7 @@ jobs:
           sh build.sh > final-fm1-build.log 2>&1
           mkdir -p build/host/fa
           export MENU_JSON=build/host/menu.json
-          {
+          bash -e -o pipefail > port-tests.log 2>&1 <<'PORT_TESTS' || { tail -100 port-tests.log; exit 1; }
             for test in storage_test fmini_app_test fmini_filter_test fmini_fx_test fmini_rec_test fmini_bank_test midi_control_test persistence_test robust_test editor_test; do
               echo "== $test"
               cc -O1 -w -Ibuild/gen -Ifirmware/src -Itests "tests/$test.c" -o "build/host/$test" -lm
@@ -153,7 +153,7 @@ jobs:
             python3 tools/gen_fmini_presets.py --check-editor
             node web/test_web.mjs
             node web/test_backup.mjs
-          } > port-tests.log 2>&1 || { tail -100 port-tests.log; exit 1; }
+          PORT_TESTS
           tail -60 port-tests.log
       - name: Stage reference artifacts
         if: always()
