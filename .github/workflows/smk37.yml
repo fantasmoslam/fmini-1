@@ -89,7 +89,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          BOARD=smk37 MODEL=elite sh build.sh 2>&1 | tee elite-build.log
+          for model in pro elite mke; do
+            BOARD=smk37 MODEL="$model" sh build.sh 2>&1 | tee "$model-build.log"
+          done
       - name: SMK protected storage checks
         shell: bash
         run: |
@@ -99,6 +101,38 @@ jobs:
           build/host/smk_flash_test
           cc -DBOARD_SMK37=1 -Ifirmware/hal tests/smk_owner_test.c -o build/host/smk_owner_test
           build/host/smk_owner_test
+      - name: Fader pickup and model matching
+        shell: bash
+        run: |
+          set -euo pipefail
+          cc -O2 -Wall -Wextra -Werror -Ifirmware/src tests/fmini_smk_pickup_test.c -o build/host/fmini_smk_pickup_test
+          build/host/fmini_smk_pickup_test
+          node tests/smk_web_model_test.mjs
+          python3 tests/install_test.py
+      - name: Per-model package, update and loader simulations
+        shell: bash
+        run: |
+          set -euo pipefail
+          index=0
+          for model in pro elite mke; do
+            stem=fmini-1-smk37
+            identity="SMK-37 Pro_900"
+            if [ "$model" = elite ]; then stem="$stem-elite"; identity="SMK-37 Elite_900"; fi
+            if [ "$model" = mke ]; then stem="$stem-mke"; identity="MKE-P37_900"; fi
+            python3 tests/smk_pkg_test.py "build/$stem.fwsc" "$identity"
+            cc -DBOARD_SMK37=1 -DT_MODEL="$index" tests/ota_test.c -o "build/host/ota-$model"
+            "build/host/ota-$model" "build/$stem.fwsc"
+            cc -DBOARD_SMK37=1 -DT_MODEL="$index" -Ifirmware/hal tests/ldr_test.c -o "build/host/ldr-$model"
+            "build/host/ldr-$model" "build/$stem.fwsc" "build/$stem.fwsc"
+            index=$((index+1))
+          done
+      - name: Shared firmware regression suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          sh build.sh > final-fm1-build.log 2>&1
+          sh tests/run_tests.sh > full-tests.log 2>&1 || { tail -100 full-tests.log; exit 1; }
+          tail -60 full-tests.log
       - name: Stage reference artifacts
         if: always()
         run: |
@@ -112,7 +146,8 @@ jobs:
           path: |
             build/reference/
             build/*.fwsc
-            elite-build.log
+            *-build.log
+            full-tests.log
             fm1-build.log
           if-no-files-found: warn
 

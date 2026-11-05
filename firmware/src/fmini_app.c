@@ -34,6 +34,10 @@ static uint8_t fa_env_last;                              /* ENV: the page it ope
 static uint32_t fa_sig_prev = 0xFFFFFFFFu;
 static uint16_t fa_knob_bmp[38 * 38];                    /* the baked knob: 0 = transparent */
 static uint8_t fa_knob_ok;
+#if BOARD_SMK37
+static uint8_t fa_smk_hot;
+static uint32_t fa_smk_until;
+#endif
 
 static const char *const FA_TAB[FA_NPAGE] = {"CTRL", "OSC", "MIX", "FILT", "F.ENV", "A.ENV", "FX"};
 
@@ -369,7 +373,27 @@ static void fa_graph(uint32_t pg)
         pt[4] = (int16_t)(a + dd); pt[5] = (int16_t)su;
         pt[6] = (int16_t)(a + dd + 20); pt[7] = (int16_t)su;
         pt[8] = (int16_t)(a + dd + 35); pt[9] = -100;
+#if BOARD_SMK37
+        if (pg == 5u) {
+            int32_t end;
+            pt[8] = (int16_t)(a + dd + 25 + k[3] * 30 / 1000);
+            end = pt[8];
+            for (j = 0; j < 5u; j++) pt[2u*j] = (int16_t)(pt[2u*j]*100/end);
+        }
+#endif
         fa_poly(pt, 5, 19, 150, 202, 38, FA_OR);
+#if BOARD_SMK37
+        if (pg == 5u && fa_smk_hot >= 1u && fa_smk_hot <= 4u && fa_smk_until) {
+            uint32_t stage = fa_smk_hot - 1u;
+            int32_t x0 = 19 + pt[2u * stage] * 202 / pt[8];
+            int32_t x1 = 19 + pt[2u * stage + 2u] * 202 / pt[8];
+            int32_t y0 = 150 + (100 - pt[2u * stage + 1u]) * 38 / 200;
+            int32_t y1 = 150 + (100 - pt[2u * stage + 3u]) * 38 / 200;
+            cv_line_t(x0, y0, x1, y1, FA_CR, 3);
+        }
+        if (pg == 5u) fa_ltext(18, 198, &AF_X, "ATTACK DECAY SUSTAIN RELEASE", FA_MU);
+        else
+#endif
         fa_ltext(18, 198, &AF_X, "ATTACK DECAY SUSTAIN", FA_MU);
     }
 }
@@ -1256,20 +1280,27 @@ static void fa_clk_apply(void)
 {
     song.g[G_CLOCK] = (int16_t)fa_clk;
 }
+#if BOARD_SMK37
+#define FA_GL_N (8u + (FELUCCA_CPU2 != 0))
+#define FA_GL_Y(y) (54 + ((y)-62)*16/17)
+#else
+#define FA_GL_N 8u
+#define FA_GL_Y(y) (y)
+#endif
 static void fa_gl_dialog(void)
 {
     char b[24];
     if (fa_gl == 1u) {
         fa_frame("GLOBAL");
-        fa_line(62, "MIDI IN", FA_SRC[fm_midi_src == 3u ? 2u : fm_midi_src & 1u], fa_gl_row == 0u);
+        fa_line(FA_GL_Y(62), "MIDI IN", FA_SRC[fm_midi_src == 3u ? 2u : fm_midi_src & 1u], fa_gl_row == 0u);
         if (fm_midi_ch)
             fmt_int(b, fm_midi_ch);
         else
             str_cpy(b, "ALL", 4);
-        fa_line(79, "MIDI CHANNEL", b, fa_gl_row == 1u);
-        fa_line(96, "MIDI CC", ">", fa_gl_row == 2u);
-        fa_line(113, "MIDI CLOCK", FA_CLK[fa_clk], fa_gl_row == 3u);
-        fa_line(130, "PITCH BEND", FA_BEND[fm_bend_mode & 3u], fa_gl_row == 4u);
+        fa_line(FA_GL_Y(79), "MIDI CHANNEL", b, fa_gl_row == 1u);
+        fa_line(FA_GL_Y(96), "MIDI CC", ">", fa_gl_row == 2u);
+        fa_line(FA_GL_Y(113), "MIDI CLOCK", FA_CLK[fa_clk], fa_gl_row == 3u);
+        fa_line(FA_GL_Y(130), "PITCH BEND", FA_BEND[fm_bend_mode & 3u], fa_gl_row == 4u);
         {   char tn[12], tr[8];
             fmt_int(tn, fa_tune_hz);
             str_cpy(tn + str_len(tn), " HZ", 4);
@@ -1281,10 +1312,15 @@ static void fa_gl_dialog(void)
                 fmt_int(tr + 1, -glo_transpose);
             } else
                 str_cpy(tr, "0", 8);
-            fa_line(147, "TUNING", tn, fa_gl_row == 5u);
-            fa_line(164, "TRANSPOSE", tr, fa_gl_row == 6u);
+            fa_line(FA_GL_Y(147), "TUNING", tn, fa_gl_row == 5u);
+            fa_line(FA_GL_Y(164), "TRANSPOSE", tr, fa_gl_row == 6u);
         }
-        fa_line(181, "ABOUT", ">", fa_gl_row == 7u);
+#if BOARD_SMK37 && FELUCCA_CPU2
+        fa_line(FA_GL_Y(181), "2ND CORE", (ui_prefs2 & (PREF_CPU2_ON >> 16)) ? "ON: RESTART" : "OFF: RESTART", fa_gl_row == 7u);
+        fa_line(FA_GL_Y(198), "ABOUT", ">", fa_gl_row == 8u);
+#else
+        fa_line(FA_GL_Y(181), "ABOUT", ">", fa_gl_row == 7u);
+#endif
         fa_ctext(120, 199, &AF_S, "SELECT  ALGO  GLO=BACK", FA_MU);
     } else {                                              /* MIDI CC: a window of six lines on the list, a scroll bar */
         uint32_t top = fa_cc_i < 3u ? 0u : fa_cc_i - 3u, k;
@@ -1426,6 +1462,9 @@ static void fa_battery(int32_t xr, int32_t y)
     }
 }
 
+#if BOARD_SMK37
+#include "fmini_smk.c"
+#endif
 static void fa_scene(void)
 {
     uint32_t pg = fa_page, i, cur = fmg_curi(pg), ex = fmg_count(pg) > 4u ? fmg_count(pg) - 4u : 0u;
@@ -1631,6 +1670,9 @@ static void fa_draw(void)
         cv_oy = -(int32_t)band * 120;
         cv_cy0 = 0;
         fa_scene();
+#if BOARD_SMK37
+        fa_smk_overlay();
+#endif
 #ifdef FMINI_DIAG
         fa_diag();
 #endif
@@ -2062,7 +2104,13 @@ static void fa_input(void)
      * ui_input.c's scr_input does this in Felucca's UI; the FMini-1 screen has its own input, so it does it here */
     if (panel_took_moved() | pressed | fm1_in.notes | fm1_in.buttons)
         scrn.idle = fm1_ms;
+#if BOARD_SMK37
+    if (fm1_in.keys) scrn.idle = fm1_ms;
+#endif
     if (fb_rs_state() == FB_RS_ASK || fb_rs == FB_RS_OK) {  /* the restore question (or its progress): nothing else */
+#if BOARD_SMK37
+        fa_smk_disarm();
+#endif
         if (fb_rs == FB_RS_ASK) {
             if ((s = panel_enc(EN_ALGO)) != 0)
                 fb_rs_yes = s > 0;
@@ -2110,6 +2158,9 @@ static void fa_input(void)
         fa_preset(s);
     fa_track_preset();                                      /* a new preset (the knob, a Program Change, a saved one): the screen stays */
     fa_cc_poll();                                         /* the CCs the MIDI inputs brought */
+#if BOARD_SMK37
+    fa_smk_controls(pressed);
+#endif
     if (fa_gl || fa_sq || fa_ar || fa_sv || fa_page != 6u)
         fmg_fx = 0;                                       /* the FX pop-up lives on the FX page alone, under no other dialog */
     if (fmg_fx) {                                         /* an FX pop-up: K1..K4 its four knobs, SELECT / ALGO as on a page */
@@ -2132,12 +2183,16 @@ static void fa_input(void)
         (void)panel_enc(EN_PRESET);
         if (fa_gl == 1u) {
             if ((s = panel_enc(EN_SELECT)) != 0)
-                fa_gl_row = (uint8_t)((fa_gl_row + 8u + (s > 0 ? 1u : 7u)) % 8u);
+                fa_gl_row = (uint8_t)((fa_gl_row + FA_GL_N + (s > 0 ? 1u : FA_GL_N - 1u)) % FA_GL_N);
             if ((s = panel_enc(EN_ALGO)) != 0) {
                 if (fa_gl_row == 0u) {
+#if BOARD_SMK37
+                    fm_midi_src=0;
+#else
                     static const uint8_t SRC[3] = {0, 1, 3};
                     int32_t d = (fm_midi_src == 3u ? 2 : (int32_t)(fm_midi_src & 1u)) + (s > 0 ? 1 : -1);
                     fm_midi_src = SRC[clamp(d, 0, 2)];
+#endif
                     panic_req |= 1u;                       /* a note of the source left must not hang */
                     fa_cfg_dirty = 1;
                 } else if (fa_gl_row == 1u) {
@@ -2147,7 +2202,11 @@ static void fa_input(void)
                 } else if (fa_gl_row == 2u) {
                     fa_gl = 2u;
                 } else if (fa_gl_row == 3u) {               /* MIDI CLOCK: OFF, USB, TRS */
+#if BOARD_SMK37
+                    fa_clk=(uint8_t)(s>0?1:0);
+#else
                     fa_clk = (uint8_t)((fa_clk + 3u + (s > 0 ? 1u : 2u)) % 3u);
+#endif
                     fa_clk_apply();
                     panic_req |= 1u;                       /* the clock changes: no note may hang */
                     fa_cfg_dirty = 1;
@@ -2165,6 +2224,13 @@ static void fa_input(void)
                     glo_transpose = clamp(glo_transpose + (s > 0 ? 1 : -1), -12, 12);
                     panic_req |= 1u;                       /* the notes held now sound elsewhere: none may hang */
                     fa_cfg_dirty = 1;
+#if BOARD_SMK37 && FELUCCA_CPU2
+                } else if (fa_gl_row == 7u) {
+                    if(s>0) ui_prefs2 |= (uint8_t)(PREF_CPU2_ON >> 16);
+                    else ui_prefs2 &= (uint8_t)~(PREF_CPU2_ON >> 16);
+                    settings_save();
+                    ui.force=1;
+#endif
                 } else
                     fa_gl = 3u;                            /* ABOUT */
             }
@@ -2298,7 +2364,7 @@ static void fa_leds(void)
     fm1_led[panel.btn[B_OCTDN]] = song.octave < 0;
     fm1_led[panel.btn[B_OCTUP]] = song.octave > 0;
     for (k = 0; k < SMK_NPAD; k++) {
-        uint32_t on = (held >> SMK_WHITE_NOTE[k]) & 1u;
+        uint32_t on = (held >> SMK_WHITE_NOTE[SMK_WHITE_OF_PAD(k)]) & 1u;
         padled_set(k, on ? 32u : 0u, on ? 16u : 0u, 0);
     }
 #else
@@ -2367,6 +2433,10 @@ static void fa_init(void)
     }
     song.sel = 0;
     fa_cfg_load();
+#if BOARD_SMK37
+    fm_midi_src=0;
+    if(fa_clk>1u)fa_clk=0;
+#endif
     ui_idle |= 1u;                                           /* the idle light show (ui_input.c idle_leds): on, after a minute with no input */
     fa_primed = 0;
     fa_last_sl = -2;

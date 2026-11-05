@@ -384,6 +384,13 @@ wire()
 installs()
 errors()
 smk()
+for current, wanted in (("SMK-37 Elite", "SMK-37 Pro"), ("SMK-37 Pro", "SMK-37 Elite"), ("MKE-P37", "SMK-37 Elite")):
+    raw = package(wanted + "_900")
+    image = I.logical_image(raw)
+    for prefix in ("", "ota-"):
+        dev = FakeFM1(image, identity=prefix + current + "_900", name="FMini-1 Update" if prefix else current)
+        rc, out, err = cli([pkgfile("wrong-model.fwsc", raw), "--yes"], dev)
+        ok(rc == 6 and dev.upgrades == 0, "wrong-model install/resume refuses before write: " + prefix + current + " -> " + wanted)
 # a package installs only on exactly its own model: each SMK model's build on that model, never FM-1 <-> SMK
 ok(I.same_model("SMK-37 Pro_016", "SMK-37 Pro_900") and I.same_model("ota-SMK-37 Elite_900", "SMK-37 Elite_900")
    and I.same_model("MKE-P37_016", "MKE-P37_900") and I.same_model("FM-1_015", "FM-1_900")

@@ -1003,6 +1003,9 @@ static void load_end(track_t *t)
 {
     if (--undo_depth)
         return;
+#if BOARD_SMK37 && FELUCCA_FMINI_ONLY
+    fmini_smk_epoch++;
+#endif
     if (load_mo & 1u) {                           /* a sound load: the motion on the common parameters stays */
         (void)motion_sound_loaded(t, load_from, t->eng_req);
         if ((load_mo & 2u) && motion_count(t))
@@ -1084,6 +1087,9 @@ static void undo_swap(void)
         return;
     }
     t = &trk[(undo.trk - 1u) % NTRK];
+#if BOARD_SMK37 && FELUCCA_FMINI_ONLY
+    fmini_smk_epoch++;
+#endif
     motion_restore(t);
     motion_store_t current_motion;
     motion_snapshot_track(t, &current_motion);

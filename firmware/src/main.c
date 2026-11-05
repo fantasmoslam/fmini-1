@@ -152,6 +152,7 @@ static void smk_wheels(void)
         b = clamp(b, -8192, 8191);
     }
     mw = mhi - m <= DEAD ? 0 : (mhi - m - DEAD) * 127 / (mhi - mlo - DEAD > 1 ? mhi - mlo - DEAD : 1);
+    if (smk_bend14 != b || smk_modw != (uint8_t)clamp(mw, 0, 127)) scrn.idle = fm1_ms;
     smk_bend14 = (int16_t)b;
     smk_modw = (uint8_t)clamp(mw, 0, 127);
 }

@@ -792,6 +792,8 @@ static void ext_keys_block(void)
             if (ext_note[k]) {
                 n = ext_note[k] - 1u;
                 mc = trk_midi_ch(ext_trk[k] % NTRK);
+                ext_note[k] = 0;
+                if (midi_local_held(&trk[ext_trk[k] % NTRK], n)) continue;
                 input_off(&trk[ext_trk[k] % NTRK], n);
                 midi_out_event(0x08u | (0x80u | mc) << 8 | n << 16);
                 ext_note[k] = 0;
@@ -803,11 +805,13 @@ static void ext_keys_block(void)
         n = kb_map(&trk[sel], (uint32_t)((int32_t)k - (int32_t)SMK_KEY_F3));
         if (n == KB_SILENT)
             continue;
-        ext_note[k] = (uint8_t)(n + 1u);
         ext_trk[k] = (uint8_t)sel;
         mc = trk_midi_ch(sel);
-        input_on(&trk[sel], n, v);
-        midi_out_event(0x09u | (0x90u | mc) << 8 | n << 16 | v << 24);
+        if (!midi_local_held(&trk[sel], n)) {
+            input_on(&trk[sel], n, v);
+            midi_out_event(0x09u | (0x90u | mc) << 8 | n << 16 | v << 24);
+        }
+        ext_note[k] = (uint8_t)(n + 1u);
     }
 }
 #endif
@@ -1395,17 +1399,14 @@ static void smk_wheels_block(void)
         lm = 0xFF;
     }
     if (b != lb) {
-        const midi_channel_t *c = midi_channel(mc);
-        int32_t range = ((int32_t)c->semis * 100 + c->cents) * 256 / 100;
         uint32_t u = (uint32_t)(b + 8192);
         lb = b;
-        if (!drum_track(&trk[sel]))
-            midi_bend_target[sel] = b * range / (b < 0 ? 8192 : 8191);
+        midi_event(0xE0u, mc, u & 0x7Fu, (u >> 7) & 0x7Fu);
         midi_out_event(0x0Eu | (0xE0u | mc) << 8 | (u & 0x7Fu) << 16 | ((u >> 7) & 0x7Fu) << 24);
     }
     if (m != lm) {
         lm = (uint8_t)m;
-        trk[sel].mw = (uint8_t)m;
+        midi_event(0xB0u, mc, 1u, m);
         midi_out_event(0x0Bu | (0xB0u | mc) << 8 | 1u << 16 | m << 24);
     }
 }

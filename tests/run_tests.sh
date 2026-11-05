@@ -199,6 +199,16 @@ known() { echo "== $1 [known failure]"; shift; if "$@"; then echo "   (known fai
 $CC -o "$OUT/storage_test" tests/storage_test.c
 run "flash storage (A/B, torn writes)" "$OUT/storage_test"
 
+$CC -Ifirmware/src -o "$OUT/fmini_smk_pickup_test" tests/fmini_smk_pickup_test.c
+run "SMK ADSR pickup and external-edit ownership" "$OUT/fmini_smk_pickup_test"
+$CC -DBOARD_SMK37=1 -Ifirmware/hal -o "$OUT/smk_flash_test" tests/smk_flash_test.c
+run "SMK flash protection and all preset bank objects" "$OUT/smk_flash_test"
+$CC -DBOARD_SMK37=1 -Ifirmware/hal -o "$OUT/smk_owner_test" tests/smk_owner_test.c
+run "SMK family ownership and interrupted saves" "$OUT/smk_owner_test"
+if command -v node >/dev/null 2>&1; then
+    run "SMK browser install/resume model matching" node tests/smk_web_model_test.mjs
+fi
+
 $CC -o "$OUT/upreset_test" tests/upreset_test.c
 run "user presets (UP_PUT parser, bank round trip, versions, PHYS DRUM and SAMPLE PERC -> DRUM, grid records, DIGITAL kept)" "$OUT/upreset_test"
 

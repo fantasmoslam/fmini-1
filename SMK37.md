@@ -10,7 +10,22 @@ Build with the same Linux toolchain and SDK as upstream:
 BOARD=smk37 MODEL=elite sh build.sh
 ```
 
-The intended physical faders are amplifier Attack, Decay, Sustain and Release, left to right, with target-crossing pickup. These controls are not implemented in the initial system-layer checkpoint.
+The physical faders control amplifier Attack, Decay, Sustain and Release, left to right, with target-crossing pickup. A patch load or external edit re-arms pickup. The first physical reading never changes a loaded value. The display shows the value and pickup direction, and the amplifier page exposes independent Release.
+
+| Control | Function |
+| --- | --- |
+| K1 | Master output level |
+| K2 / K3 | Fixed filter cutoff / resonance on ordinary sound pages |
+| K4 | Preset selection |
+| K5..K8 | The current page's four controls |
+| Hold KNOB BANK + K2 / K3 | Select / edit an extra control; modifier is shown on screen |
+| Hold KNOB BANK + K8 | Patch level |
+| Left / right | Previous / next sound page |
+| FADER BANK | Open amplifier envelope; faders keep their ADSR assignments |
+| Pitch / mod wheels | Engine pitch-bend / modulation path |
+| GLO > 2ND CORE | Enable or disable the inherited worker after restart; hardware benefit unverified |
+
+The existing pads play notes using the reference SMK mapping. A dedicated performance-patch bank is deferred. Pedal support and Bluetooth are not implemented. Legato and selectable note priority remain future work. The worker still splits whole parts; one active part may get no acceleration. No measured speedup or increased voice budget is claimed.
 
 The common store stays in the SMK VM region. The thirteen A/B objects for the 200-slot FMini patch bank occupy 0xC2000..0xDBFFF, replacing stock user data. The stock mapping marker is invalidated before that area is used so stock firmware can rebuild its own mapping. The calibration/pairing area, bootloader, stock resource area and key area remain protected. Firmware changes do not preserve stock sounds/settings; export those before switching.
 

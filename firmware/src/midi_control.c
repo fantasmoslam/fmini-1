@@ -80,6 +80,10 @@ static int midi_note_held(const track_t *t, uint32_t note)
 static int midi_local_held(const track_t *t, uint32_t note)
 {
     uint32_t k, i;
+#if BOARD_SMK37
+    for (k = 0; k < FM1_NKEY; k++)
+        if (ext_note[k] == note + 1u && ext_trk[k] == trk_index(t)) return 1;
+#endif
     for (k = 0; k < 27u; k++)
         if (kb_chn[k] && kb_trk[k] == trk_index(t))
             for (i = 0; i < kb_chn[k]; i++)

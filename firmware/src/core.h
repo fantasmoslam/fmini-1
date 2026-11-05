@@ -6,6 +6,9 @@
  * engine (General MIDI map) on any part; the SAMPLE engine's PERC set is retired (drum_from_perc).
  * Sections: sizes, parameters, voices and engines, tracks and the song, system. */
 #include <stdint.h>
+#if BOARD_SMK37 && FELUCCA_FMINI_ONLY
+static uint32_t fmini_smk_epoch;
+#endif
 
 /* ------------------------------------------------------------ sizes --- */
 #if FELUCCA_FMINI_ONLY

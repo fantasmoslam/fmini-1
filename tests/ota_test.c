@@ -229,18 +229,19 @@ int main(int argc, char **argv)
     reset_dev();
     rc = ota_session();
     printf("  %u requests\n", requests);
-    bad += check("session commits (flash.bin exactly 0x93000)", rc == 0 && committed);
+    bad += check("session commits (flash.bin exactly " T_FL_LEN ")", rc == 0 && committed);
     /* own loader: 19 requests; the official loader (V15, V16) is larger: 44 (it writes the head, which is no longer read) */
     bad += check("headers + loader + confirm, no head reads", requests >= 10 && requests <= 60);
     {
-        uint8_t *h = nor + 0xE0000, *p = committed_parm;
-        bad += check("staged body == the package's loader", !memcmp(nor + 0xE0020, logical + ota_body_off(), 64));
+        uint8_t *h = nor + T_AREA, *p = committed_parm;
+        bad += check("staged body == the package's loader", !memcmp(nor + T_AREA + 0x20u, logical + ota_body_off(), 64));
         bad += check("LOADER.BIN head CRC",
                      (h[0] | h[1] << 8) == ota_crc16(h + 2, 30, 0) && !memcmp(h + 16, "LOADER.BIN", 10));
-        bad += check("record at 0xE4F00 == RAM record", !memcmp(nor + 0xE4F00, p, 112));
+        bad += check("record at the staging end == RAM record", !memcmp(nor + T_AREA_HI - 0x100u, p, 112));
+        bad += check("model identity in record", !memcmp(p + 8, T_PARM_ID, sizeof T_PARM_ID - 1u));
         bad += check("record CRC / type / magic / ota_addr",
                      (p[0] | p[1] << 8) == ota_crc16(p + 2, 78, 0) && (p[2] | p[3] << 8) == 0x5A0D &&
-                     (p[6] | p[7] << 8) == 0x5441 && ota_rd32(p + 72) == 0xE0000);
+                     (p[6] | p[7] << 8) == 0x5441 && ota_rd32(p + 72) == T_AREA);
         bad += check("nothing written outside 0xE0000..0xE4FFF", bad_erase == 0);
     }
     /* boot cleanup erases it */
