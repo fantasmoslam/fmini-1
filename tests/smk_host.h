@@ -16,6 +16,9 @@ static struct {
 } fm1_in;
 static uint8_t smk_pad_grid;
 static uint8_t smk_pad_piano;
+static uint32_t padled_hold_until;
+/* Compatibility fixtures for unused FM-1-only assertions in ui_test.c. */
+static uint8_t led_pos[64];
 static const uint8_t SMK_WHITE_NOTE[16]={0,2,4,6,7,9,11,12,14,16,18,19,21,23,24,26};
 #define SMK_PAD_OF_WHITE(w) (smk_pad_grid?(w):(w)<8u?(w)+8u:(w)-8u)
 #define SMK_WHITE_OF_PAD(p) (smk_pad_grid?(p):(p)<8u?(p)+8u:(p)-8u)
